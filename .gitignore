@@ -34,3 +34,5 @@
 # Builds
 .vscode
 ch_1_rotationupdate/builds
+ch_2_viodatasimulation/builds
+ch_2_viodatasimulation/bin/data_gen
