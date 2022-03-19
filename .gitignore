@@ -32,4 +32,5 @@
 *.app
 
 # Builds
+.vscode
 ch_1/builds
