@@ -36,3 +36,6 @@
 ch_1_rotationupdate/builds
 ch_2_viodatasimulation/builds
 ch_2_viodatasimulation/bin/data_gen
+ch_2_viodatasimulation/bin/keyframe
+ch_2_viodatasimulation/bin/*.txt
+ch_3_gaussnewton/builds

@@ -1,10 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 15 18:18:24 2017
-
-@author: hyj
-"""
 import os
 import numpy as np
 import matplotlib
@@ -44,9 +37,9 @@ position2 = data[:,[tx_index, tx_index + 1, tx_index + 2]]
 fig = plt.figure()
 ax = fig.gca(projection='3d')
 
-ax.plot(position[:,0], position[:,1], position[:,2], label='gt')
+ax.plot(position[:,0], position[:,1], position[:,2], label='imu_gt')
 ax.plot(position1[:,0], position1[:,1], position1[:,2], label='imu_int')
-# ax.plot(position2[:,0], position2[:,1], position2[:,2], label='noise')
+ax.plot(position2[:,0], position2[:,1], position2[:,2], label='imu_int_noise')
 ax.plot([position[0,0]], [position[0,1]], [position[0,2]], 'r.', label='start')
 
 ax.legend()

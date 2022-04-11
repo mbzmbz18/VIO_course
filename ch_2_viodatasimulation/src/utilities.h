@@ -8,27 +8,26 @@
 #include <vector>
 #include <fstream>
 
-// save 3d points to file
-void save_points(std::string filename, std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d> > points);
+// 存储空间中的所有三维点的坐标到文件
+void save_points(std::string filename, 
+                 std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> points);
 
-// save 3d points and it's obs in image
+// 存储当前帧相机可以观测到的空间中所有三维点的坐标以及其对应的二维图像坐标到文件
 void save_features(std::string filename,
-                   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d> > points,
-                   std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > features);
+                   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> points,
+                   std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d>> features);
 
-// save line obs
+// 存储当前帧相机可以观测到的空间中所有线段(两个端点的坐标)到文件
 void save_lines(std::string filename,
-                std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d> > features);
+                std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> features);
 
-
+// 从文件中加载IMU数据
 void LoadPose(std::string filename, std::vector<MotionData>& pose);
 
-// save imu body data
+// 存储IMU数据到文件
 void save_Pose(std::string filename, std::vector<MotionData> pose);
 
-// save pose as TUM style
+// 存储IMU数据到文件(TUM格式)
 void save_Pose_asTUM(std::string filename, std::vector<MotionData> pose);
 
 #endif //IMUSIMWITHPOINTLINE_UTILITIES_H
-
-
