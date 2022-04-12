@@ -85,12 +85,12 @@ MotionData IMU::MotionModel(double t)
     Eigen::Vector3d imu_acc = Rwb.transpose() * (ddp - gn);
 
     // 将计算的运动数据赋值到当前帧
-    data.imu_gyro = imu_gyro;   // gyro的测量值(也是理论值，因为没有误差)
-    data.imu_acc = imu_acc;     // acc的测量值(也是理论值，因为没有误差)
-    data.Rwb = Rwb;             // 旋转
-    data.twb = position;        // 平移
-    data.imu_velocity = dp;     // 速度
-    data.timestamp = t;         // 时间戳
+    data.imu_gyro = imu_gyro;   // 当前gyro的测量值(理想，因为没有噪声)
+    data.imu_acc = imu_acc;     // 当前acc的测量值(理想，因为没有噪声)
+    data.Rwb = Rwb;             // 当前旋转
+    data.twb = position;        // 当前平移
+    data.imu_velocity = dp;     // 当前速度
+    data.timestamp = t;         // 当前时间戳
     return data;
 }
 
@@ -101,38 +101,46 @@ void IMU::addIMUnoise(MotionData& data)
     std::random_device rd;
     std::default_random_engine generator_(rd());
     std::normal_distribution<double> noise(0.0, 1.0);   // 高斯分布，均值为0.0，方差为1.0
+    // 当前时刻t下，下面将IMU的数据加入相关的噪声项
 
-    // 当前时刻t下，加入相关的噪声项
-    // 创建随机的gyro高斯白噪声
-    Eigen::Vector3d noise_gyro(noise(generator_), noise(generator_), noise(generator_));
-    // 创建gyro的协方差矩阵
+    // Step 1: 当前gyro的测量值(理想)加入当前的高斯白噪声以及上一时刻gyro的bias，得到当前时刻gyro的测量值(真实)
+    // 创建N(0,1)的随机高斯白噪声(3x1)
+    Eigen::Vector3d white_noise1(noise(generator_), noise(generator_), noise(generator_));
+    // 创建gyro高斯白噪声的协方差矩阵(3x3)
     Eigen::Matrix3d gyro_sqrt_cov = param_.gyro_noise_sigma * Eigen::Matrix3d::Identity();
+    // 计算离散情况下gyro的高斯白噪声，其公式见课件L2-26-(10)
+    Eigen::Vector3d noise_gyro = gyro_sqrt_cov / sqrt(param_.imu_timestep) * white_noise1;
     // 将gyro的理论测量值加入相关的噪声，这里包括，gyro的离散高斯白噪声以及gyro的bias
-    // 其中，gyro的离散高斯白噪声计算，其公式见课件L2-s26-(11)
-    //      gyro的bias默认为上一时刻的bias
-    data.imu_gyro = data.imu_gyro + gyro_sqrt_cov * noise_gyro / sqrt(param_.imu_timestep) + gyro_bias_;
-    // 创建随机的acc高斯白噪声
-    Eigen::Vector3d noise_acc(noise(generator_), noise(generator_), noise(generator_));
-    // 创建acc的协方差矩阵
-    Eigen::Matrix3d acc_sqrt_cov = param_.acc_noise_sigma * Eigen::Matrix3d::Identity();
-    // 将acc的理论测量值加入相关的噪声，这里包括，acc的离散高斯白噪声以及acc的bias
-    // 其中，acc的离散高斯白噪声计算，其公式见课件L2-s26-(11)
-    //      acc的bias默认为上一时刻的bias
-    data.imu_acc = data.imu_acc + acc_sqrt_cov * noise_acc / sqrt( param_.imu_timestep ) + acc_bias_;
+    //      gyro的bias默认为上一时刻的bias，即此时该bias还未更新
+    data.imu_gyro = data.imu_gyro + noise_gyro + gyro_bias_;
 
-    // 更新当前gyro的bias，以便在下一时刻使用
-    // 创建随机的gyro的bias的白噪声，即随即游走
-    Eigen::Vector3d noise_gyro_bias(noise(generator_), noise(generator_), noise(generator_));
-    // 将白噪声加入gyro的bias，其公式见课件L2-s28-(15)
-    gyro_bias_ = gyro_bias_ + param_.gyro_bias_sigma * sqrt(param_.imu_timestep ) * noise_gyro_bias;
-    // 更新
+    // Step 2: 当前acc的测量值(理想)加入当前的高斯白噪声以及上一时刻acc的bias，得到当前时刻acc的测量值(真实)
+    // 创建N(0,1)的随机高斯白噪声(3x1)
+    Eigen::Vector3d white_noise2(noise(generator_), noise(generator_), noise(generator_));
+    // 创建acc高斯白噪声的协方差矩阵(3x3)
+    Eigen::Matrix3d acc_sqrt_cov = param_.acc_noise_sigma * Eigen::Matrix3d::Identity();
+    // 计算离散情况下acc的高斯白噪声，其公式见课件L2-26-(10)
+    Eigen::Vector3d noise_acc = acc_sqrt_cov / sqrt(param_.imu_timestep) * white_noise2;
+    // 将acc的理论测量值加入相关的噪声，这里包括，acc的离散高斯白噪声以及acc的bias
+    //      acc的bias默认为上一时刻的bias，即此时该bias还未更新
+    data.imu_acc = data.imu_acc + noise_acc + acc_bias_;
+
+    // Step 3: 上一时刻gyro的bias加入bias的随机游走，得到更新当前时刻gyro的bias
+    // 创建N(0,1)的随机高斯白噪声(3x1)
+    Eigen::Vector3d white_noise3(noise(generator_), noise(generator_), noise(generator_));
+    // 计算gyro的bias的随机游走，其公式见课件L2-28-(14)
+    Eigen::Vector3d bias_change_gyro = param_.gyro_bias_sigma * sqrt(param_.imu_timestep) * white_noise3;
+    // 计算并更新gyro的bias，其公式见课件L2-s28-(14)
+    gyro_bias_ = gyro_bias_ + bias_change_gyro;
     data.imu_gyro_bias = gyro_bias_;
-    // 更新当前acc的bias，以便在下一时刻使用
-    // 创建随机的acc的bias的白噪声，即随即游走
-    Eigen::Vector3d noise_acc_bias(noise(generator_), noise(generator_), noise(generator_));
-    // 将白噪声加入gyro的bias，其公式见课件L2-s28-(15)
-    acc_bias_ = acc_bias_ + param_.acc_bias_sigma * sqrt(param_.imu_timestep ) * noise_acc_bias;
-    // 更新
+
+    // Step 4: 上一时刻acc的bias加入bias的随机游走，得到更新当前时刻acc的bias
+    // 创建N(0,1)的随机高斯白噪声(3x1)
+    Eigen::Vector3d white_noise4(noise(generator_), noise(generator_), noise(generator_));
+    // 计算acc的bias的随机游走，其公式见课件L2-28-(14)
+    Eigen::Vector3d bias_change_acc = param_.acc_bias_sigma * sqrt(param_.imu_timestep) * white_noise4;
+    // 计算并更新acc的bias，其公式见课件L2-s28-(14)
+    acc_bias_ = acc_bias_ + bias_change_acc;
     data.imu_acc_bias = acc_bias_;
 }
 
@@ -162,6 +170,7 @@ void IMU::testImu(std::string src, std::string dist)
     // 从第1帧开始，遍历所有帧
     for (int i = 1; i < all_imudata.size(); ++i) {
 
+        // Step 0: 提取相关IMU数据
         // 得到当前帧(curr)的时间戳
         double curr_timestamp = all_imudata[i].timestamp;
         // 得到当前帧(curr)的IMU运动数据
@@ -170,12 +179,13 @@ void IMU::testImu(std::string src, std::string dist)
         MotionData last_imudata = all_imudata[i-1];
 
         if (use_euler) {
-            // IMU动力学模型：欧拉积分
+            // Step 1: IMU动力学模型：欧拉积分
             // 欧拉积分的公式见课件L2-s37-(24) 
             // 注意：这里只是简单将IMU的测量数据进行积分
             //      由于没有状态估计系统，acc和gyro的bias是未知的，因此可以将它们设置为0，在积分的时候被忽略
             // 首先计算旋转部分的更新量
-            Eigen::Vector3d w = last_imudata.imu_gyro; // 需要gyro的测量值，另外gyro的bias设置为0
+            Eigen::Vector3d w = last_imudata.imu_gyro - Eigen::Vector3d(0,0,0); // 需要上一时刻gyro的测量值，
+                                                                                // 另外gyro的bias设置为0
             Eigen::Vector3d dqi = 0.5 * w * dt;
             Eigen::Quaterniond dq;
             dq.w() = 1;
@@ -184,20 +194,22 @@ void IMU::testImu(std::string src, std::string dist)
             dq.z() = dqi.z();
             dq.normalize(); // 注意：将四元数归一化，只有单位四元数才能代表旋转
             // 其次计算平移部分的更新量
-            Eigen::Vector3d a = Qwb * (last_imudata.imu_acc) + gw; // 需要acc的测量值，另外acc的bias设置为0
+            Eigen::Vector3d a = Qwb * (last_imudata.imu_acc - Eigen::Vector3d(0,0,0)) + gw; // 需要上一时刻acc的测量值，
+                                                                                            // 另外acc的bias设置为0
             // 执行系统的状态量PVQ的更新
             Vw = Vw + a * dt;                           // 更新当前帧(curr)的速度
             Pwb = Pwb + Vw * dt + 0.5 * dt * dt * a;    // 更新当前帧(curr)的平移
             Qwb = Qwb * dq;                             // 更新当前帧(curr)的旋转
         } 
         else {
-            // IMU动力学模型：中值积分
+            // Step 2: IMU动力学模型：中值积分
             // 中值积分的公式见课件L2-s38-(26) 
             // 注意：这里只是简单将IMU的测量数据进行积分
             //      由于没有状态估计系统，acc和gyro的bias是未知的，因此可以将它们设置为0，在积分的时候被忽略
             // 首先计算旋转部分的更新量
-            Eigen::Vector3d w = 0.5 * (curr_imudata.imu_gyro + last_imudata.imu_gyro); // 需要gyro的测量值，
-                                                                                       // 另外gyro的bias设置为0
+            Eigen::Vector3d w = 0.5 * (curr_imudata.imu_gyro - Eigen::Vector3d(0,0,0) + 
+                                       last_imudata.imu_gyro - Eigen::Vector3d(0,0,0)); // 需要gyro的测量值，
+                                                                                        // 另外gyro的bias设置为0
             Eigen::Vector3d dqi = 0.5 * w * dt;
             Eigen::Quaterniond dq;
             dq.w() = 1;
@@ -208,9 +220,10 @@ void IMU::testImu(std::string src, std::string dist)
             // 提前更新旋转Q，以用于中值公式
             Eigen::Quaterniond curr_Qwb = Qwb * dq;
             // 其次计算平移部分的更新量
-            Eigen::Vector3d a_curr = curr_Qwb * curr_imudata.imu_acc + gw;  // 需要acc的测量值，另外acc的bias设置为0
-            Eigen::Vector3d a_last = Qwb * last_imudata.imu_acc + gw;       // 需要acc的测量值，另外acc的bias设置为0
-            Eigen::Vector3d a = 0.5 * (a_curr + a_last);
+            Eigen::Vector3d a_curr = curr_Qwb * (curr_imudata.imu_acc - Eigen::Vector3d(0,0,0)) + gw;
+            Eigen::Vector3d a_last = Qwb * (last_imudata.imu_acc - Eigen::Vector3d(0,0,0)) + gw;    // 需要acc的测量值，
+                                                                                                    // 另外acc的bias设置为0
+            Eigen::Vector3d a = 0.5 * (a_curr + a_last); // 中值法
             // 执行系统的状态量PVQ的更新
             Vw = Vw + a * dt;                           // 更新当前帧(curr)的速度
             Pwb = Pwb + Vw * dt + 0.5 * dt * dt * a;    // 更新当前帧(curr)的平移  

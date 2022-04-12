@@ -47,11 +47,11 @@ public:
 
     Param param_;   // IMU相关参数
 
-    Eigen::Vector3d gyro_bias_;         // gyro的bias，会随时间变化
-    Eigen::Vector3d acc_bias_;          // acc的bias，会随时间变化
-    Eigen::Vector3d init_velocity_;     // 初始速度
-    Eigen::Vector3d init_twb_;          // 初始平移
-    Eigen::Matrix3d init_Rwb_;          // 初始旋转
+    Eigen::Vector3d gyro_bias_;         // IMU状态量：gyro的bias，会随时间变化
+    Eigen::Vector3d acc_bias_;          // IMU状态量：acc的bias，会随时间变化
+    Eigen::Vector3d init_twb_;          // 初始平移P
+    Eigen::Vector3d init_velocity_;     // 初始速度V
+    Eigen::Matrix3d init_Rwb_;          // 初始旋转Q
 };
 
 #endif //IMUSIMWITHPOINTLINE_IMU_H

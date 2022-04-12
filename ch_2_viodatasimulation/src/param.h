@@ -19,11 +19,11 @@ public:
     double t_end = 20;                      // 模拟结束时间
 
     // 相关噪声参数
-    double gyro_bias_sigma = 1.0e-5;        // gyro的bias的(协)方差
+    double gyro_bias_sigma = 1.0e-5;        // gyro的bias的(协)方差，还需要转化为(3x3)矩阵
     double acc_bias_sigma = 0.0001;         // acc的bias的(协)方差
     double gyro_noise_sigma = 0.015;        // gyro的高斯白噪声的(协)方差
-    double acc_noise_sigma = 0.019;         // gyro的高斯白噪声的(协)方差: m/(s^2) * 1/sqrt(hz)
-    double pixel_noise = 1;                 // 像素噪声: 1 pixel noise
+    double acc_noise_sigma = 0.019;         // gyro的高斯白噪声的(协)方差，
+    double pixel_noise = 1;                 // 相机的像素噪声: 1 pixel noise
 
     // 相机参数
     double fx = 460;
