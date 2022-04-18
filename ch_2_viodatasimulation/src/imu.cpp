@@ -197,8 +197,8 @@ void IMU::testImu(std::string src, std::string dist)
             Eigen::Vector3d a = Qwb * (last_imudata.imu_acc - Eigen::Vector3d(0,0,0)) + gw; // 需要上一时刻acc的测量值，
                                                                                             // 另外acc的bias设置为0
             // 执行系统的状态量PVQ的更新
-            Vw = Vw + a * dt;                           // 更新当前帧(curr)的速度
             Pwb = Pwb + Vw * dt + 0.5 * dt * dt * a;    // 更新当前帧(curr)的平移
+            Vw = Vw + a * dt;                           // 更新当前帧(curr)的速度
             Qwb = Qwb * dq;                             // 更新当前帧(curr)的旋转
         } 
         else {
@@ -225,8 +225,8 @@ void IMU::testImu(std::string src, std::string dist)
                                                                                                     // 另外acc的bias设置为0
             Eigen::Vector3d a = 0.5 * (a_curr + a_last); // 中值法
             // 执行系统的状态量PVQ的更新
-            Vw = Vw + a * dt;                           // 更新当前帧(curr)的速度
             Pwb = Pwb + Vw * dt + 0.5 * dt * dt * a;    // 更新当前帧(curr)的平移  
+            Vw = Vw + a * dt;                           // 更新当前帧(curr)的速度
             Qwb = curr_Qwb;                             // 更新当前帧(curr)的旋转
         }
 

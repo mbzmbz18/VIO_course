@@ -1,0 +1,73 @@
+#include "vertex.h"
+#include "edge.h"
+// #include <glog/logging.h>
+#include <iostream>
+
+using namespace std;
+
+namespace myslam {
+namespace backend {
+
+unsigned long global_edge_id = 0;
+
+// 构造函数，会自动化配雅可比的空间
+Edge::Edge(int residual_dimension, int num_verticies,
+           const std::vector<std::string>& verticies_types) 
+{
+    // 定义残差的维度
+    residual_.resize(residual_dimension, 1);
+    // verticies_.resize(num_verticies); // TODO: 这里可能会存在问题，比如这里resize了3个，后续调用edge->addVertex，使得vertex前面会存在空元素
+    // 定义相关Vertex的类型
+    if (!verticies_types.empty())
+        verticies_types_ = verticies_types;
+    // 定义雅可比的维度
+    jacobians_.resize(num_verticies);
+    id_ = global_edge_id++;
+
+    Eigen::MatrixXd information(residual_dimension, residual_dimension);
+    information.setIdentity();
+    information_ = information;
+
+    // cout << "Edge construct residual_dimension=" << residual_dimension
+    //      << ", num_verticies=" << num_verticies << ", id_=" << id_ << endl;
+}
+
+// 析构函数
+Edge::~Edge() {}
+
+// 计算平方误差，会乘以信息矩阵
+double Edge::Chi2() 
+{
+    // TODO::  we should not Multiply information here, because we have computed Jacobian = sqrt_info * Jacobian
+    return residual_.transpose() * information_ * residual_;
+    // return residual_.transpose() * residual_;   // 当计算 residual 的时候已经乘以了 sqrt_info, 这里不要再乘
+}
+
+// 检查边的信息是否全部设置
+bool Edge::CheckValid() 
+{
+    if (!verticies_types_.empty()) {
+        // check type info
+        for (size_t i = 0; i < verticies_.size(); ++i) {
+            if (verticies_types_[i] != verticies_[i]->TypeInfo()) {
+                cout << "Vertex type does not match, should be " << verticies_types_[i] <<
+                     ", but set to " << verticies_[i]->TypeInfo() << endl;
+                return false;
+            }
+        }
+    }
+    /*
+    CHECK_EQ(information_.rows(), information_.cols());
+    CHECK_EQ(residual_.rows(), information_.rows());
+    CHECK_EQ(residual_.rows(), observation_.rows());
+    // check jacobians
+    for (size_t i = 0; i < jacobians_.size(); ++i) {
+        CHECK_EQ(jacobians_[i].rows(), residual_.rows());
+        CHECK_EQ(jacobians_[i].cols(), verticies_[i]->LocalDimension());
+    }
+    */
+    return true;
+}
+
+}
+}
