@@ -11,7 +11,7 @@ namespace backend {
 class Vertex;
 
 /**
- * 边负责计算残差，残差是 预测-观测，其维度在构造函数中定义
+ * @brief 边负责计算残差，残差是 预测-观测，其维度在构造函数中定义
  * 代价函数是 残差*信息*残差，是一个标量数值，由后端求和后最小化
  */
 class Edge 
@@ -20,9 +20,9 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
     /**
-     * 构造函数，会自动化配雅可比的空间
-     * @param residual_dimension 残差维度
-     * @param num_verticies 顶点数量
+     * @brief 构造函数，会自动化分配雅可比的空间
+     * @param residual_dimension 残差的维度
+     * @param num_verticies 相关Vertex数量
      * @param verticies_types 顶点类型名称，可以不给，不给的话check中不会检查
      */
     explicit Edge(int residual_dimension, int num_verticies,
@@ -65,7 +65,7 @@ public:
     // 计算残差，具体由子类实现
     virtual void ComputeResidual() = 0;
 
-    // 计算雅可比，具体由子类实现，且本后端不支持自动求导，需要实现每个子类的雅可比计算方法
+    // 计算所有的小雅可比，具体由子类实现，且本后端不支持自动求导，需要实现每个子类的雅可比计算方法
     virtual void ComputeJacobians() = 0;
 
     // // 计算该edge对Hession矩阵的影响，由子类实现
@@ -77,7 +77,7 @@ public:
     // 返回残差
     VecX Residual() const { return residual_; }
 
-    // 返回雅可比
+    // 返回所有的小雅可比
     std::vector<MatXX> Jacobians() const { return jacobians_; }
 
     // 设置信息矩阵, information_ = sqrt_Omega = w

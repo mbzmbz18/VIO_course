@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <map>
 #include <memory>
+#include <fstream>
 
 #include "eigen_types.h"
 #include "edge.h"
@@ -29,7 +30,6 @@ public:
     typedef std::map<unsigned long, std::shared_ptr<Vertex>> HashVertex;
     typedef std::unordered_map<unsigned long, std::shared_ptr<Edge>> HashEdge;
     typedef std::unordered_multimap<unsigned long, std::shared_ptr<Edge>> HashVertexIdToEdge;
-
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
     // 构造函数
@@ -82,7 +82,7 @@ private:
     // 解线性方程
     void SolveLinearSystem();
 
-    // 更新状态变量
+    // 依据当前迭代的更新量，对系统待估计状态进行更新
     void UpdateStates();
 
     // 有时候 update 后残差会变大，需要退回去，重来
@@ -110,21 +110,22 @@ private:
 
     // 计算LM算法的初始阻尼系数Lambda
     void ComputeLambdaInitLM();
+
     // Hessian对角线加上阻尼系数Lambda
     void AddLambdatoHessianLM();
     // Hessian对角线减去之前添加的阻尼系数Lambda
     void RemoveLambdaHessianLM();
 
-    // LM 算法中用于判断 Lambda 在上次迭代中是否可以，以及Lambda怎么缩放
+    // 判断阻尼引子Lambda在上次迭代求解过程中是否可以，以及下一步Lambda应该怎么缩放
     bool IsGoodStepInLM();
 
-    // PCG 迭代线性求解器
-    VecX PCGSolver(const MatXX &A, const VecX &b, int maxIter);
+    // PCG迭代线性求解器
+    VecX PCGSolver(const MatXX& A, const VecX& b, int maxIter);
 
-    double currentLambda_;      // 当前迭代的阻尼系数 Lambda
-    double currentChi_;         // 当前迭代的
-    double stopThresholdLM_;    // LM 迭代退出阈值条件
-    double ni_;                 // 控制 Lambda 缩放大小
+    double currentLambda_;      // 当前迭代的阻尼系数Lambda
+    double currentChi_;         // 当前迭代的残差值
+    double stopThresholdLM_;    // LM迭代退出的阈值条件，即一个特定的残差值
+    double ni_;                 // 用于控制阻尼系数Lambda缩放大小
 
     ProblemType problemType_;   // 最小二乘问题的类型
 
@@ -158,19 +159,21 @@ private:
     // 由vertex id查询edge
     HashVertexIdToEdge vertexToEdge_;
 
-    // Ordering related
+    // Ordering相关的
     ulong ordering_poses_ = 0;
     ulong ordering_landmarks_ = 0;
     ulong ordering_generic_ = 0;
     std::map<unsigned long, std::shared_ptr<Vertex>> idx_pose_vertices_;        // 以ordering排序的pose顶点
     std::map<unsigned long, std::shared_ptr<Vertex>> idx_landmark_vertices_;    // 以ordering排序的landmark顶点
 
-    // verticies need to marg. <Ordering_id_, Vertex>
+    // 需要被marg的一些Vertex
     HashVertex verticies_marg_;
 
     bool bDebug = false;
     double t_hessian_cost_ = 0.0;
     double t_PCGsovle_cost_ = 0.0;
+
+    std::ofstream output_file_; // 输出文件路径
 };
 
 }

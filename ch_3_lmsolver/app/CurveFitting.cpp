@@ -21,45 +21,45 @@ class CurveFittingEdge : public Edge
 {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    // 构造函数，调用Edge的构造函数，这里观测值是1维，相关Vertex有1个，相关Vertex的类型是abc
-    CurveFittingEdge(double x, double y): Edge(1, 1, std::vector<std::string>{"abc"}) 
-    {
-        x_ = x; // 观测值xi
-        y_ = y; // 观测值yi
+    // 构造函数，调用Edge的构造函数
+    // 这里观测值是1维，Edge的相关Vertex有1个，相关Vertex的类型是abc
+    CurveFittingEdge(double x, double y): Edge(1, 1, std::vector<std::string>{"abc"}) {
+        x_ = x; // 赋值观测值xi
+        y_ = y; // 赋值观测值yi
     }
-    // 计算当前Edge的残差ei
-    virtual void ComputeResidual() override
-    {
-        /*
+    // 重载基类的函数，计算当前Edge的残差ei
+    virtual void ComputeResidual() override {
+        // 注意：残差是数值，需要代入当前迭代中的待估计值和观测值，观测值恒定
         // 应用于曲线函数 y = exp(ax^2 + bx + c) + w
         Vec3 abc = verticies_[0]->Parameters(); // 得到当前待估计的参数值
-        residual_(0) = std::exp(abc(0)*x_*x_ + abc(1)*x_ + abc(2)) - y_;  // 计算残差，这里残差的维度是1
-        */
+        // 计算当前残差，代入Edge的观测数据以及当前待估计的参数值
+        residual_(0) = std::exp(abc(0)*x_*x_ + abc(1)*x_ + abc(2)) - y_; 
+        /*
         // 应用于曲线函数 y = ax^2 + bx + c + w
         Vec3 abc = verticies_[0]->Parameters(); // 得到当前待估计的参数值
         residual_(0) = abc(0)*x_*x_ + abc(1)*x_ + abc(2) - y_;
-
+        */
     }
-    // 计算当前Edge的残差对待优化变量的雅克比J
-    virtual void ComputeJacobians() override
-    {
-        /*
+    // 重载基类的函数，计算当前Edge的残差的雅克比J
+    virtual void ComputeJacobians() override {
+        // 注意：雅可比是数值，需要代入当前迭代中的待估计值和观测值，观测值恒定
         // 应用于曲线函数 y = exp(ax^2 + bx + c) + w
         Vec3 abc = verticies_[0]->Parameters(); // 得到当前待估计的参数值
-        // 初始化雅可比，残差为1维，状态量3个，所以是1x3的雅克比矩阵
+        // 初始化雅可比，残差为1维，待估计状态量3个，所以是1x3的雅克比矩阵
         Eigen::Matrix<double, 1, 3> jaco_abc;
-        // 计算雅可比，代入实际的观测数据以及当前待估计的参数值
+        // 计算当前雅可比，代入Edge的观测数据以及当前待估计的参数值
         double exp_y = std::exp(abc(0)*x_*x_ + abc(1)*x_ + abc(2));
         jaco_abc << x_ * x_ * exp_y, x_ * exp_y , 1 * exp_y;    
-        jacobians_[0] = jaco_abc;   // 赋值雅可比J  
-        */
+        jacobians_[0] = jaco_abc;
+        /*
         // 应用于曲线函数 y = ax^2 + bx + c + w
         Vec3 abc = verticies_[0]->Parameters(); // 得到当前待估计的参数值
         // 初始化雅可比，残差为1维，状态量3个，所以是1x3的雅克比矩阵
         Eigen::Matrix<double, 1, 3> jaco_abc;
         // 计算雅可比，代入实际的观测数据以及当前待估计的参数值
         jaco_abc << x_*x_, x_, 1;
-        jacobians_[0] = jaco_abc;   // 赋值雅可比J
+        jacobians_[0] = jaco_abc;
+        */
     }
     // 返回Edge的类型信息，debug时使用
     virtual std::string TypeInfo() const override { return "CurveFittingEdge"; }
@@ -67,14 +67,12 @@ public:
     double x_, y_;  // x，y为观测值(xi,yi)
 };
 
-
-
 int main()
 {
     // 问题的相关参数
     double a = 1.0, b = 2.0, c = 1.0;       // 真实参数值
-    int N = 500;                            // 提供观测点的数量
-    double w_sigma= 1.0;                    // 观测高斯白噪声的标准差
+    int N = 100;                            // 提供观测点的数量
+    double w_sigma = 1.0;                   // 观测高斯白噪声的标准差
     std::default_random_engine generator;   // 随机数生成器
     std::normal_distribution<double> noise(0., w_sigma);    // 高斯分布，均值为0，标准差为w_sigma
 
@@ -82,6 +80,7 @@ int main()
     Problem problem(Problem::ProblemType::GENERIC_PROBLEM); // 设置为通用的最小二乘问题
 
     // 构建一个Vertex
+    // 注意：本问题中只有唯一一个Vertex
     shared_ptr<CurveFittingVertex> vertex(new CurveFittingVertex());
     // 对该Vertex设定待估计状态 x = (a, b, c) 的初始值
     vertex->SetParameters(Eigen::Vector3d(0., 0., 0.));
@@ -95,9 +94,9 @@ int main()
         double n = noise(generator);
         // 制作当前的观测yi
         // 应用于曲线函数 y = exp(ax^2 + bx + c) + w
-        //double yi = std::exp(a*xi*xi + b*xi + c) + n;   // 加入高斯白噪声，以模拟真实的观测数据
+        double yi = std::exp(a*xi*xi + b*xi + c) + n;   // 加入高斯白噪声，以模拟真实的观测数据
         // 应用于曲线函数 y = ax^2 + bx + c + w
-        double yi = a*xi*xi + b*xi + c;
+        //double yi = a*xi*xi + b*xi + c + n;
         // 每个观测(xi, yi)对应的残差函数，构建一个Edge
         shared_ptr<CurveFittingEdge> edge(new CurveFittingEdge(xi, yi));
         // 设置与当前Edge相关的Vertex
