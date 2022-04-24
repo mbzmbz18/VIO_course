@@ -41,3 +41,4 @@ ch_2_viodatasimulation/bin/*.txt
 ch_3_gaussnewton/builds
 ch_3_lmsolver/builds
 ch_4_nullspace_test/builds
+ch_5_BA_schur/builds
