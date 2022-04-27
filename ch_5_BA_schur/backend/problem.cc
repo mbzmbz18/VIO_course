@@ -687,7 +687,7 @@ void Problem::TestMarginalize()
               -1./delta1, 1./delta1 + 1./delta2 + 1./delta3, -1./delta3,
               0.,  -1./delta3, 1/delta3;
     // 显示初始的Hessian矩阵
-    std::cout << "---------- TEST Marg: marg 之前的H矩阵------------"<< std::endl;
+    std::cout << "---------- TEST Marg: Hessian before marginalization------------"<< std::endl;
     std::cout << H_marg << std::endl;
 
     // 开始进行marginalization
@@ -714,12 +714,12 @@ void Problem::TestMarginalize()
     // 将col(marg_idx)移动到Hessian矩阵的最右面
     H_marg.block(0, allstate_size - marg_dim, allstate_size, marg_dim) = temp_cols;
     // 显示marg变量移动后的Hessian矩阵
-    std::cout << "---------- TEST Marg: 将变量移动到右下角------------"<< std::endl;
+    std::cout << "---------- TEST Marg: after remove marg variable into bottom right corner------------" << std::endl;
     std::cout<< H_marg <<std::endl;
 
     // 开始marg操作，需要被marg的变量现在位于Hessian矩阵的右下角
-    int m2 = marg_dim;                   // 被marg变量的维度    
-    int n2 = allstate_size - marg_dim;   // marg后，剩余变量的维度
+    int m2 = marg_dim;                   // 被marg变量自身的维度    
+    int n2 = allstate_size - marg_dim;   // marg后，剩余变量的总维度
     // 计算Amm的逆，这里使用Eigen::SelfAdjointEigenSolver
     double eps = 1e-8;
     Eigen::MatrixXd Amm = 0.5 * (H_marg.block(n2, n2, m2, m2) + H_marg.block(n2, n2, m2, m2).transpose());
@@ -728,11 +728,14 @@ void Problem::TestMarginalize()
             (saes.eigenvalues().array() > eps).select(saes.eigenvalues().array().inverse(), 0)).asDiagonal() *
                               saes.eigenvectors().transpose();
 
-    // TODO:: home work. 完成舒尔补操作
-    //Eigen::MatrixXd Arm = H_marg.block(?,?,?,?);
-    //Eigen::MatrixXd Amr = H_marg.block(?,?,?,?);
-    //Eigen::MatrixXd Arr = H_marg.block(?,?,?,?);
-
+    // 完成舒尔补操作
+    // 提取H矩阵的右上块
+    Eigen::MatrixXd Arm = H_marg.block(0, n2, n2, m2);
+    // 提取H矩阵的左下块
+    Eigen::MatrixXd Amr = H_marg.block(n2, 0, m2, n2);
+    // 提取H矩阵的左上块
+    Eigen::MatrixXd Arr = H_marg.block(0, 0, n2, n2);
+    // 求解得到fill-in的Hessian，对应于剩余的变量，其公式为 H_prior = Arr - Arm*Amm_inv*Amr
     Eigen::MatrixXd tempB = Arm * Amm_inv;
     Eigen::MatrixXd H_prior = Arr - tempB * Amr;
 

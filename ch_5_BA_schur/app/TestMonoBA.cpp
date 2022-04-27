@@ -164,7 +164,7 @@ int main()
 
     // Step 4: 测试marginalization
     // 一个单独的函数，和之前创建的问题无关！
-    //problem.TestMarginalize();
+    problem.TestMarginalize();
 
     return 0;
 }
