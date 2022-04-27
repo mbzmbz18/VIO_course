@@ -180,7 +180,7 @@ void Problem::MakeHessian()
     TicToc t_h;
 
     // 初始化当前迭代过程中的大 H 矩阵和 b 向量，注意维度
-    ulong size = ordering_generic_;     // 得到待优化变量的总维度(使用其局部参数化的维度)
+    ulong size = ordering_generic_;     // 得到所有待优化变量的总维度(使用各自Vertex局部参数化的维度)
     MatXX H(MatXX::Zero(size, size));   // 根据维度进行初始化大 Hessian 为全0矩阵
     VecX b(VecX::Zero(size));           // 根据维度进行初始化 b 为全0向量
 
@@ -198,7 +198,7 @@ void Problem::MakeHessian()
         // 得到当前Edge所有相关的Vertex，由于取决于Edge的类型，一个Edge可能对应多个Vertex
         auto verticies = edge.second->Verticies();  // 所有的相关Vertex
         // 得到当前Edge对所有相关Vertex的雅可比
-        auto jacobians = edge.second->Jacobians();      // 所有相关Vertex的雅可比
+        auto jacobians = edge.second->Jacobians();  // 所有相关Vertex的小雅可比
         assert(jacobians.size() == verticies.size());
         // 遍历当前Edge所有相关的Vertex，由于取决于Edge的类型，一个Edge可能对应多个Vertex
         for (size_t i = 0; i < verticies.size(); ++i) {
@@ -310,7 +310,7 @@ void Problem::ComputeLambdaInitLM()
     if (err_prior_.rows() > 0) {
         currentChi_ += err_prior_.norm();
     }
-    // 以当前初始的残差和为标准，设置迭代完成时要求的残差和
+    // 以当前初始的残差和为标准，设置迭代完成时要求的残差和作为阀值
     stopThresholdLM_ = 1e-6 * currentChi_;  // 迭代停止条件为：残差下降为初始的1e-6倍
     ulong size = Hessian_.cols();
     assert(Hessian_.rows() == Hessian_.cols() && "Hessian is not square");
@@ -353,7 +353,7 @@ bool Problem::IsGoodStepInLM()
     double scale = 0;
     scale = delta_x_.transpose() * (currentLambda_ * delta_x_ + b_);
     scale += 1e-3;    // 保证分母不为0
-    // recompute residuals after update state
+
     // 在当前迭代完成并更新状态量后，再次统计所有的残差
     double tempChi = 0.0;
     for (auto edge: edges_) {

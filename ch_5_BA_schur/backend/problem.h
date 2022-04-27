@@ -14,9 +14,9 @@ typedef unsigned long ulong;
 namespace myslam {
 namespace backend {
 
-class Problem {
+class Problem 
+{
 public:
-
     /**
      * @brief 问题的类型：SLAM问题还是通用的问题
      * 如果是SLAM问题，那么pose和landmark是区分开的，Hessian以稀疏方式存储
@@ -40,17 +40,14 @@ public:
 
     ~Problem();
 
+    // 向问题中添加Vertex
     bool AddVertex(std::shared_ptr<Vertex> vertex);
-
-    /**
-     * @brief remove a vertex
-     * @param vertex_to_remove
-     */
+    // 向问题中删除Vertex
     bool RemoveVertex(std::shared_ptr<Vertex> vertex);
 
-    // 向问题中添加顶点
+    // 向问题中添加Edge
     bool AddEdge(std::shared_ptr<Edge> edge);
-
+    // 向问题中删除Edge
     bool RemoveEdge(std::shared_ptr<Edge> edge);
 
     /**
@@ -61,14 +58,13 @@ public:
 
     /**
      * @brief 求解此问题
-     * @param iterations
+     * @param iterations 最大迭代次数
      */
     bool Solve(int iterations);
 
     // 边缘化一个frame和以它为host的landmark
     bool Marginalize(std::shared_ptr<Vertex> frameVertex,
-                     const std::vector<std::shared_ptr<Vertex>> &landmarkVerticies);
-
+                     const std::vector<std::shared_ptr<Vertex>>& landmarkVerticies);
     bool Marginalize(const std::shared_ptr<Vertex> frameVertex);
 
     // test compute prior
@@ -85,7 +81,7 @@ private:
     // 设置各顶点的ordering_index
     void SetOrdering();
 
-    // set ordering for new vertex in slam problem
+    // 如果是SLAM问题，设置该Vertex对应的OrderingId
     void AddOrderingSLAM(std::shared_ptr<Vertex> v);
 
     // 构造当前迭代的H矩阵
@@ -112,73 +108,78 @@ private:
     bool IsLandmarkVertex(std::shared_ptr<Vertex> v);
 
     // 在新增顶点后，需要调整几个hessian的大小
+    // 这里仅应用于滑动窗口等类似情形，在添加新的Vertex之后，旧的先验信息依旧想保留下来，不至于重构problem
     void ResizePoseHessiansWhenAddingPose(std::shared_ptr<Vertex> v);
 
     // 检查ordering是否正确
     bool CheckOrdering();
 
+    // 显示输出
     void LogoutVectorSize();
 
     // 获取某个顶点连接到的边
     std::vector<std::shared_ptr<Edge>> GetConnectedEdges(std::shared_ptr<Vertex> vertex);
 
-    // Levenberg
     // 计算LM算法的初始Lambda
     void ComputeLambdaInitLM();
 
-    // Hessian 对角线加上或者减去 Lambda
+    // Hessian对角线加上或者减去Lambda
     void AddLambdatoHessianLM();
-
     void RemoveLambdaHessianLM();
 
-    // LM 算法中用于判断 Lambda 在上次迭代中是否可以，以及Lambda怎么缩放
+    // LM算法中用于判断Lambda在上次迭代中是否可以，以及Lambda怎么缩放
     bool IsGoodStepInLM();
 
-    // PCG 迭代线性求解器
-    VecX PCGSolver(const MatXX &A, const VecX &b, int maxIter);
+    // PCG迭代线性求解器
+    VecX PCGSolver(const MatXX& A, const VecX& b, int maxIter);
 
-    double currentLambda_;
-    double currentChi_;
-    double stopThresholdLM_;    // LM 迭代退出阈值条件
-    double ni_;                 // 控制 Lambda 缩放大小
+    // LM算法相关参数
+    double currentLambda_;      // 当前迭代中的阻尼因子Lambda
+    double currentChi_;         // 当前迭代所有Edge的残差之和
+    double stopThresholdLM_;    // 残差阈值，代表LM迭代退出的条件
+    double ni_;                 // 控制Lambda缩放大小
 
-    ProblemType problemType_;   // 最小二乘的问题类型
+    // 最小二乘的问题类型
+    ProblemType problemType_;   
 
-    // 整个信息矩阵
+    // 整个Hessian和b向量，在每次迭代后会更新
     MatXX Hessian_;
     VecX b_;
+    // 每次迭代中求解的状态量更新
     VecX delta_x_;
 
+    // 滑动窗口相关
     // 先验部分信息
     MatXX H_prior_;
     VecX b_prior_;
     MatXX Jt_prior_inv_;
     VecX err_prior_;
 
+    // 舒尔补相关
     // SBA的Pose部分
     MatXX H_pp_schur_;
     VecX b_pp_schur_;
-    // Hessian 的 Landmark 和 pose 部分
+    // Hessian的Landmark和pose部分
     MatXX H_pp_;
     VecX b_pp_;
     MatXX H_ll_;
     VecX b_ll_;
 
-    // all vertices
+    // 所有的Vertex，这里不区分Vertex的类型，以Id排序
     HashVertex verticies_;
-
-    // all edges
+    // 所有的Edge，这里不区分Edge的类型，以Id排序
     HashEdge edges_;
-
-    // 由vertex id查询其关联的edge
+    // 由Vertex的Id查询其关联的edge
     HashVertexIdToEdge vertexToEdge_;
 
-    // Ordering related
+    // OrderingId相关，在设置OrderingId时用于计数
     ulong ordering_poses_ = 0;
     ulong ordering_landmarks_ = 0;
     ulong ordering_generic_ = 0;
-    std::map<unsigned long, std::shared_ptr<Vertex>> idx_pose_vertices_;        // 以ordering排序的pose顶点
-    std::map<unsigned long, std::shared_ptr<Vertex>> idx_landmark_vertices_;    // 以ordering排序的landmark顶点
+    // SLAM问题，用于记录所有加入problem的Pose类型的Vertex，以Id排序
+    std::map<unsigned long, std::shared_ptr<Vertex>> idx_pose_vertices_;
+    // SLAM问题，用于记录所有加入problem的Landmark类型的Vertex，以Id排序
+    std::map<unsigned long, std::shared_ptr<Vertex>> idx_landmark_vertices_;
 
     // verticies need to marg. <Ordering_id_, Vertex>
     HashVertex verticies_marg_;
